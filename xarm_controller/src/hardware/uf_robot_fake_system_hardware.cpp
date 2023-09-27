@@ -20,11 +20,11 @@ namespace uf_robot_hardware
         info_ = info;
 
         node_ = rclcpp::Node::make_shared("uf_robot_fake_hw");
-        joint_state_pub_ = node_->create_publisher<sensor_msgs::msg::JointState>("joint_states", 1000);
+        joint_state_pub_ = node_->create_publisher<sensor_msgs::msg::JointState>("/xarm/joint_states", 1000);
         node_thread_ = std::thread([this]() {
             rclcpp::spin(node_);
         });
-        
+
         joint_state_msg_.header.frame_id = "joint-state data";
         joint_state_msg_.name.resize(info_.joints.size());
         joint_state_msg_.position.resize(info_.joints.size(), 0);
@@ -34,11 +34,20 @@ namespace uf_robot_hardware
         for (int i = 0; i < info_.joints.size(); i++) {
             joint_state_msg_.name[i] = info_.joints[i].name;
         }
-        
+
         position_states_.resize(info_.joints.size(), 0);
         velocity_states_.resize(info_.joints.size(), 0);
         position_cmds_.resize(info_.joints.size(), 0);
         velocity_cmds_.resize(info_.joints.size(), 0);
+
+        position_cmds_ = {
+          0.0,
+          -0.9472621756699773,
+          -0.7435338735011472,
+          0.0,
+          1.6908753409699446,
+          0.0
+        };
 
         for (const hardware_interface::ComponentInfo & joint : info_.joints) {
             bool has_pos_cmd_interface = false;
@@ -125,21 +134,21 @@ namespace uf_robot_hardware
     {
         // std::string pos_str = "[ ";
         // std::string vel_str = "[ ";
-        // for (int i = 0; i < position_cmds_.size(); i++) { 
-        //     pos_str += std::to_string(position_cmds_[i]); 
+        // for (int i = 0; i < position_cmds_.size(); i++) {
+        //     pos_str += std::to_string(position_cmds_[i]);
         //     pos_str += " ";
-        //     vel_str += std::to_string(velocity_cmds_[i]); 
+        //     vel_str += std::to_string(velocity_cmds_[i]);
         //     vel_str += " ";
         // }
         // pos_str += "]";
         // vel_str += "]";
         // RCLCPP_INFO(LOGGER, "positon: %s, velocity: %s", pos_str.c_str(), vel_str.c_str());
 
-        for (int i = 0; i < position_cmds_.size(); i++) { 
+        for (int i = 0; i < position_cmds_.size(); i++) {
             position_states_[i] = position_cmds_[i];
             joint_state_msg_.position[i] = position_cmds_[i];
         }
-        for (int i = 0; i < velocity_cmds_.size(); i++) { 
+        for (int i = 0; i < velocity_cmds_.size(); i++) {
             velocity_states_[i] = velocity_cmds_[i];
             joint_state_msg_.velocity[i] = velocity_cmds_[i];
         }
@@ -147,4 +156,3 @@ namespace uf_robot_hardware
         return hardware_interface::return_type::OK;
     }
 }
-
