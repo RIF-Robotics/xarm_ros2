@@ -101,7 +101,7 @@ namespace uf_robot_hardware
         }
 
         RCLCPP_INFO(LOGGER, "[%s] namespace: %s", robot_ip_.c_str(), node_->get_namespace());
-        RCLCPP_INFO(LOGGER, "[%s] robot_type: %s, hw_ns: %s, prefix: %s, report_type: %s", 
+        RCLCPP_INFO(LOGGER, "[%s] robot_type: %s, hw_ns: %s, prefix: %s, report_type: %s",
             robot_ip_.c_str(), robot_type.c_str(), hw_ns.c_str(), prefix.c_str(), report_type.c_str());
 
         int dof = 7;
@@ -130,7 +130,7 @@ namespace uf_robot_hardware
         if (it != info_.hardware_parameters.end()) {
             add_gripper = (it->second == "True" || it->second == "true");
         }
-        
+
         if (robot_type == "lite") add_gripper = false;
         node_->set_parameter(rclcpp::Parameter("add_gripper", add_gripper));
 
@@ -138,9 +138,9 @@ namespace uf_robot_hardware
         if (it != info_.hardware_parameters.end()) {
             velocity_control_ = (it->second == "True" || it->second == "true");
         }
-        RCLCPP_INFO(LOGGER, "[%s] dof: %d, velocity_control: %d, add_gripper: %d, baud_checkset: %d, default_gripper_baud: %d", 
+        RCLCPP_INFO(LOGGER, "[%s] dof: %d, velocity_control: %d, add_gripper: %d, baud_checkset: %d, default_gripper_baud: %d",
             robot_ip_.c_str(), dof, velocity_control_, add_gripper, baud_checkset, default_gripper_baud);
-        
+
         xarm_driver_.init(node_, robot_ip_);
     }
 
@@ -165,7 +165,7 @@ namespace uf_robot_hardware
         memset(prev_cmds_float_, 0, sizeof(prev_cmds_float_));
 
         _init_ufactory_driver();
-        
+
         position_states_.resize(info_.joints.size(), std::numeric_limits<double>::quiet_NaN());
         velocity_states_.resize(info_.joints.size(), std::numeric_limits<double>::quiet_NaN());
         position_cmds_.resize(info_.joints.size(), std::numeric_limits<double>::quiet_NaN());
@@ -261,7 +261,7 @@ namespace uf_robot_hardware
                 velocity_cmds_[i] = velocity_states_[i];
             }
         }
-        
+
         RCLCPP_INFO(LOGGER, "[%s] System Sucessfully started!", robot_ip_.c_str());
         return CallbackReturn::SUCCESS;
     }
@@ -287,7 +287,7 @@ namespace uf_robot_hardware
 			read_code_ = xarm_driver_.arm->get_joint_states(curr_read_position_, curr_read_velocity_, curr_read_effort_);
 		else
 			read_code_ = xarm_driver_.arm->get_servo_angle(curr_read_position_);
-        
+
         curr_read_time_ = node_->get_clock()->now();
         read_ready_ = read_ready_ && _xarm_is_ready_read();
         double time_sec = curr_read_time_.seconds() - start.seconds();
@@ -346,13 +346,13 @@ namespace uf_robot_hardware
             return hardware_interface::return_type::OK;
         }
         initialized_ = true;
-        
+
         // std::string pos_str = "[ ";
         // std::string vel_str = "[ ";
-        // for (int i = 0; i < position_cmds_.size(); i++) { 
-        //     pos_str += std::to_string(position_cmds_[i]); 
+        // for (int i = 0; i < position_cmds_.size(); i++) {
+        //     pos_str += std::to_string(position_cmds_[i]);
         //     pos_str += " ";
-        //     vel_str += std::to_string(velocity_cmds_[i]); 
+        //     vel_str += std::to_string(velocity_cmds_[i]);
         //     vel_str += " ";
         // }
         // pos_str += "]";
@@ -361,7 +361,7 @@ namespace uf_robot_hardware
 
         int cmd_ret = 0;
         if (velocity_control_) {
-            for (int i = 0; i < velocity_cmds_.size(); i++) { 
+            for (int i = 0; i < velocity_cmds_.size(); i++) {
                 cmds_float_[i] = (float)velocity_cmds_[i];
             }
             // RCLCPP_INFO(LOGGER, "[%s] velocity: %s", robot_ip_.c_str(), vel_str.c_str());
@@ -371,7 +371,7 @@ namespace uf_robot_hardware
             }
         }
         else {
-            for (int i = 0; i < position_cmds_.size(); i++) { 
+            for (int i = 0; i < position_cmds_.size(); i++) {
                 cmds_float_[i] = (float)position_cmds_[i];
             }
             curr_write_time_ = node_->get_clock()->now();
@@ -383,7 +383,7 @@ namespace uf_robot_hardware
                 }
                 if (cmd_ret == 0) {
                     prev_write_time_ = curr_write_time_;
-                    for (int i = 0; i < 7; i++) { 
+                    for (int i = 0; i < 7; i++) {
                         prev_cmds_float_[i] = (float)cmds_float_[i];
                     }
                 }
@@ -396,14 +396,15 @@ namespace uf_robot_hardware
     void UFRobotSystemHardware::_reload_controller(void) {
         int ret = _call_request(client_list_controller_, req_list_controller_, res_list_controller_);
         if (ret == 0 && res_list_controller_->controller.size() > 0) {
-            req_switch_controller_->start_controllers.resize(res_list_controller_->controller.size());
-            req_switch_controller_->stop_controllers.resize(res_list_controller_->controller.size());
+            req_switch_controller_->activate_controllers.resize(res_list_controller_->controller.size());
+            req_switch_controller_->deactivate_controllers.resize(res_list_controller_->controller.size());
             for (uint i = 0; i < res_list_controller_->controller.size(); i++) {
-                req_switch_controller_->start_controllers[i] = res_list_controller_->controller[i].name;
-                req_switch_controller_->stop_controllers[i] = res_list_controller_->controller[i].name;
+                req_switch_controller_->activate_controllers[i] = res_list_controller_->controller[i].name;
+                req_switch_controller_->deactivate_controllers[i] = res_list_controller_->controller[i].name;
             }
             req_switch_controller_->strictness = controller_manager_msgs::srv::SwitchController::Request::BEST_EFFORT;
-            _call_request(client_switch_controller_, req_switch_controller_, res_switch_controller_);
+            // TODO: This causes the control manager to disable the running controller
+            // _call_request(client_switch_controller_, req_switch_controller_, res_switch_controller_);
         }
         if (ret == 0) {
             reload_controller_ = false;
@@ -498,4 +499,3 @@ namespace uf_robot_hardware
         return is_not_ready || !write_succeed || read_code_ != 0 || !read_ready_;
     }
 }
-
